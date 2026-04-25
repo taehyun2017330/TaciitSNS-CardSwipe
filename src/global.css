@@ -1,0 +1,61 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Manrope:wght@400;500;600;700&display=swap');
+
+:root {
+  --journey-progress-height: 4.6rem;
+  --app-bg: #f5f2ec;
+  --app-bg-accent: #ece5d9;
+  --surface-0: rgba(255, 253, 250, 0.78);
+  --surface-1: #fffdf9;
+  --surface-2: #f5eee3;
+  --surface-3: #ede3d4;
+  --ink-strong: #1e1d1a;
+  --ink-body: #4c473f;
+  --ink-soft: #746d62;
+  --line-strong: #c9bdab;
+  --line-soft: rgba(97, 81, 59, 0.14);
+  --accent: #214f4a;
+  --accent-strong: #163d39;
+  --accent-soft: #dce9e5;
+  --accent-contrast: #f8f4ee;
+  --warn-soft: #f5e7d5;
+  --warn-ink: #8b5a1b;
+  --shadow-soft: 0 24px 60px rgba(77, 58, 35, 0.08);
+  --shadow-card: 0 18px 40px rgba(62, 50, 34, 0.08);
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Manrope', 'Avenir Next', 'Helvetica Neue', sans-serif;
+  --app-stage-max-width: 93.75rem;
+  --radius-lg: 28px;
+  --radius-md: 18px;
+  --radius-sm: 12px;
+  --btn-primary-bg: #102f2c;
+  --btn-primary-bg-hover: #0c2522;
+  --btn-primary-border: #0a211f;
+  --btn-primary-text: #fffdf8;
+  --btn-secondary-bg: rgba(255, 252, 248, 0.98);
+  --btn-secondary-bg-hover: rgba(255, 248, 238, 1);
+  --btn-secondary-border: rgba(97, 81, 59, 0.18);
+  --btn-secondary-text: var(--ink-body);
+  --btn-choice-bg: rgba(255, 250, 243, 0.96);
+  --btn-choice-bg-hover: rgba(255, 247, 238, 1);
+  --btn-choice-border: rgba(97, 81, 59, 0.14);
+  --btn-choice-text: var(--ink-body);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.9), transparent 24rem),
+    linear-gradient(180deg, #f8f7f4 0%, var(--app-bg) 36%, #eeebe4 100%);
+  color: var(--ink-body);
+  font-family: var(--font-body);
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
