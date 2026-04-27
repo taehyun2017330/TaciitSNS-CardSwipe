@@ -22,6 +22,7 @@ class SwipeImageGenerationRequest(BaseModel):
     size: str = "1024x1024"
     quality: str = "medium"
     referenceImageUrl: str = ""
+    batchNumber: int = 1
 
 
 class SwipeGeneratedImage(BaseModel):

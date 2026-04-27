@@ -62,7 +62,8 @@ import './PreferenceSwipePrototype.css';
 async function requestOpenAiImages(
   onboarding: OnboardingState,
   selectedCandidates: ImageCandidate[],
-  referenceImageUrl: string | null = null
+  referenceImageUrl: string | null = null,
+  batchNumber: number = 1
 ): Promise<SwipeImageGenerationResponse> {
   const exploitIndex = referenceImageUrl
     ? selectedCandidates.findIndex(candidate => candidate.strategy === 'exploit')
@@ -79,6 +80,7 @@ async function requestOpenAiImages(
       tone: onboarding.tone.join(', '),
       avoid: onboarding.avoid,
       referenceImageUrl: referenceImageUrl ?? '',
+      batchNumber,
       plans: selectedCandidates.map((candidate, index) => ({
         id: candidate.id,
         prompt: candidate.prompt,
@@ -132,9 +134,6 @@ const MiniPostCard = ({ candidate, isActive = false }: { candidate: ImageCandida
         </div>
       </>
     )}
-    {candidate.generationStatus === 'generating' ? (
-      <div className="swipe-post-card__status">Generating with {OPENAI_IMAGE_MODEL}</div>
-    ) : null}
     {candidate.generationStatus === 'failed' ? (
       <div className="swipe-post-card__status swipe-post-card__status--failed">Real image unavailable</div>
     ) : null}
@@ -163,9 +162,10 @@ function PreferenceSwipePrototype() {
   const activeCandidate = candidates[activeIndex] ?? null;
   const isActiveCandidatePending = activeCandidate?.generationStatus === 'generating';
   const isGeneratingBatch = isGeneratingImages || candidates.some(candidate => candidate.generationStatus === 'generating');
-  const generatedImageCount = candidates.filter(candidate => candidate.generationStatus === 'generated').length;
+  const renderedImageCount = candidates.filter(candidate => Boolean(candidate.imageUrl)).length;
   const imagesRendered = candidates.length > 0 && candidates.every(candidate => candidate.imageUrl || candidate.generationStatus === 'failed');
   const analysisInFlight = imagesRendered && candidates.some(candidate => candidate.generationStatus === 'generating');
+  const activeImageModel = batchNumber <= 3 ? 'gemini-2.5-flash-image' : OPENAI_IMAGE_MODEL;
   const batchFeedback = feedbackEvents.filter(event => event.batchId === `batch-${batchNumber}`);
   const batchComplete = candidates.length > 0 && batchFeedback.length >= candidates.length;
 
@@ -218,7 +218,7 @@ function PreferenceSwipePrototype() {
     let generatedImages: SwipeImageGenerationResponse['images'] = [];
     try {
       const [response] = await Promise.all([
-        requestOpenAiImages(nextOnboarding, candidatesForBatch, referenceImageUrl),
+        requestOpenAiImages(nextOnboarding, candidatesForBatch, referenceImageUrl, nextBatchNumber),
         delay(700)
       ]);
       generatedImages = response.images;
@@ -780,8 +780,8 @@ function PreferenceSwipePrototype() {
                   </>
                 ) : (
                   <>
-                    <strong>Generating images with {OPENAI_IMAGE_MODEL}</strong>
-                    <p>{OPENAI_IMAGE_SIZE} · {OPENAI_IMAGE_QUALITY} quality · {generatedImageCount} of {candidates.length || 4} returned</p>
+                    <strong>Generating images with {activeImageModel}</strong>
+                    <p>{OPENAI_IMAGE_SIZE} · {OPENAI_IMAGE_QUALITY} quality · {renderedImageCount} of {candidates.length || 4} returned</p>
                   </>
                 )}
               </div>

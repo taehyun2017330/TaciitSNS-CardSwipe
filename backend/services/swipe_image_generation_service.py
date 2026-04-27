@@ -11,12 +11,14 @@ from api_models import (
     SwipeImageGenerationResponse,
     SwipeImagePlanRequest,
 )
+from services.gemini_image_generation_service import generate_one_gemini_image
 
 
 OPENAI_IMAGE_GENERATION_URL = "https://api.openai.com/v1/images/generations"
 OPENAI_IMAGE_EDITS_URL = "https://api.openai.com/v1/images/edits"
 MAX_IMAGE_ATTEMPTS = 3
 RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503, 504}
+GEMINI_BATCH_LIMIT = 3  # Use Gemini for batches 1-3, switch to OpenAI for 4+.
 
 
 def _decode_data_url(data_url: str) -> Optional[bytes]:
@@ -126,18 +128,31 @@ async def _call_openai_image_api(
     )
 
 
+def _should_use_gemini(request: SwipeImageGenerationRequest, plan: SwipeImagePlanRequest) -> bool:
+    if request.batchNumber > GEMINI_BATCH_LIMIT:
+        return False
+    # Reference-based gen needs OpenAI's /v1/images/edits — Gemini path skips reference.
+    if plan.useReference and request.referenceImageUrl:
+        return False
+    return True
+
+
 async def _generate_one_image(
     client: httpx.AsyncClient,
-    api_key: str,
+    openai_key: str,
+    gemini_key: str,
     request: SwipeImageGenerationRequest,
     plan: SwipeImagePlanRequest,
 ) -> Tuple[SwipeGeneratedImage | None, str | None]:
     prompt = _build_image_prompt(plan, request)
 
+    if _should_use_gemini(request, plan) and gemini_key:
+        return await generate_one_gemini_image(client, gemini_key, request, plan, prompt)
+
     last_error = ""
     for attempt in range(1, MAX_IMAGE_ATTEMPTS + 1):
         try:
-            response = await _call_openai_image_api(client, api_key, request, plan, prompt)
+            response = await _call_openai_image_api(client, openai_key, request, plan, prompt)
             response.raise_for_status()
             body = response.json()
             first_image = (body.get("data") or [{}])[0]
@@ -184,16 +199,17 @@ async def _generate_one_image(
 async def generate_swipe_images(
     request: SwipeImageGenerationRequest,
 ) -> SwipeImageGenerationResponse:
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
-    if not api_key:
+    openai_key = os.getenv("OPENAI_API_KEY", "").strip()
+    gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not openai_key:
         raise RuntimeError("OPENAI_API_KEY is not configured.")
 
-    semaphore = asyncio.Semaphore(2)
+    semaphore = asyncio.Semaphore(4)
 
     async with httpx.AsyncClient(timeout=180.0) as client:
         async def run(plan: SwipeImagePlanRequest):
             async with semaphore:
-                return await _generate_one_image(client, api_key, request, plan)
+                return await _generate_one_image(client, openai_key, gemini_key, request, plan)
 
         results = await asyncio.gather(*(run(plan) for plan in request.plans[:4]))
 
@@ -205,8 +221,9 @@ async def generate_swipe_images(
         if error:
             errors.append(error)
 
+    response_model = images[0].model if images else request.model
     return SwipeImageGenerationResponse(
-        model=request.model,
+        model=response_model,
         size=request.size,
         quality=request.quality,
         images=images,
