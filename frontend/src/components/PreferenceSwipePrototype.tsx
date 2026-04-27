@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Braces,
   Check,
@@ -18,7 +18,6 @@ import { apiFetch } from '../api';
 import { archetypes } from '../preference/archetypes';
 import {
   DEFAULT_ONBOARDING,
-  OPENAI_IMAGE_MODEL,
   OPENAI_IMAGE_QUALITY,
   OPENAI_IMAGE_SIZE,
   QUICK_REASONS,
@@ -159,13 +158,18 @@ function PreferenceSwipePrototype() {
   const [lastLikedImageUrl, setLastLikedImageUrl] = useState<string | null>(null);
   const [llmBubble, setLlmBubble] = useState<BubbleAction | null>(null);
 
+  const pendingVisionRef = useRef<Promise<void> | null>(null);
+  const [isAwaitingVision, setIsAwaitingVision] = useState(false);
+
   const activeCandidate = candidates[activeIndex] ?? null;
   const isActiveCandidatePending = activeCandidate?.generationStatus === 'generating';
   const isGeneratingBatch = isGeneratingImages || candidates.some(candidate => candidate.generationStatus === 'generating');
   const renderedImageCount = candidates.filter(candidate => Boolean(candidate.imageUrl)).length;
   const imagesRendered = candidates.length > 0 && candidates.every(candidate => candidate.imageUrl || candidate.generationStatus === 'failed');
   const analysisInFlight = imagesRendered && candidates.some(candidate => candidate.generationStatus === 'generating');
-  const activeImageModel = batchNumber <= 3 ? 'gemini-2.5-flash-image' : OPENAI_IMAGE_MODEL;
+  // Test config: Gemini for everything. Reset SHOW_CLARIFICATION + backend GEMINI_BATCH_LIMIT to re-enable.
+  const SHOW_CLARIFICATION = false;
+  const activeImageModel = 'gemini-2.5-flash-image';
   const batchFeedback = feedbackEvents.filter(event => event.batchId === `batch-${batchNumber}`);
   const batchComplete = candidates.length > 0 && batchFeedback.length >= candidates.length;
 
@@ -223,8 +227,7 @@ function PreferenceSwipePrototype() {
       ]);
       generatedImages = response.images;
       const imagesByPlanId = new Map(response.images.map(image => [image.planId, image]));
-      // Set imageUrl so cards render immediately, but keep status='generating' to
-      // block swipes until vision analysis returns features.
+      // Unlock swipes immediately on gen completion. Vision runs in background below.
       setCandidates(current =>
         current.map(candidate => {
           const image = imagesByPlanId.get(candidate.id);
@@ -238,15 +241,16 @@ function PreferenceSwipePrototype() {
           return {
             ...candidate,
             imageUrl: image.imageUrl,
-            generatedPrompt: image.revisedPrompt || image.prompt
+            generatedPrompt: image.revisedPrompt || image.prompt,
+            generationStatus: 'generated' as const
           };
         })
       );
       setTraceEvents(current => [
         createTrace(
           'batch_generated',
-          `Images ready, analyzing visuals`,
-          `${response.images.length}/${candidatesForBatch.length} generated with ${response.model}, ${response.size}, ${response.quality}.`
+          `Images ready`,
+          `${response.images.length}/${candidatesForBatch.length} generated with ${response.model}, ${response.size}, ${response.quality}. Vision analysis running in background.`
         ),
         ...current
       ]);
@@ -271,49 +275,47 @@ function PreferenceSwipePrototype() {
       return;
     }
 
-    try {
-      const featuresByPlanId = await requestImageAnalysis(
-        generatedImages.map(image => ({ planId: image.planId, imageUrl: image.imageUrl }))
-      );
-      setCandidates(current =>
-        current.map(candidate => {
-          if (candidate.generationStatus === 'failed') {
-            return candidate;
-          }
-          const visionFeatures = featuresByPlanId.get(candidate.id);
-          return {
-            ...candidate,
-            generationStatus: 'generated' as const,
-            intendedFeatures: visionFeatures ? createFeatureVector(visionFeatures) : candidate.intendedFeatures
-          };
-        })
-      );
-      setTraceEvents(current => [
-        createTrace(
-          'batch_generated',
-          `Vision analysis complete`,
-          `Scored ${featuresByPlanId.size} images on 24 features.`
-        ),
-        ...current
-      ]);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Vision analysis failed.';
-      // Still mark images as generated so swipes unlock; preference math falls back
-      // to the (empty) intendedFeatures, so swipe-update only reflects reason text.
-      setCandidates(current =>
-        current.map(candidate =>
-          candidate.generationStatus === 'failed'
-            ? candidate
-            : { ...candidate, generationStatus: 'generated' as const }
-        )
-      );
-      setTraceEvents(current => [
-        createTrace('batch_generated', 'Vision analysis fallback', message),
-        ...current
-      ]);
-    } finally {
-      setIsGeneratingImages(false);
-    }
+    setIsGeneratingImages(false);
+
+    // Background vision: doesn't block swipes. handleGenerateNext awaits this
+    // before firing the next batch's synthesis so preference state is current.
+    const visionPromise = (async () => {
+      try {
+        const featuresByPlanId = await requestImageAnalysis(
+          generatedImages.map(image => ({ planId: image.planId, imageUrl: image.imageUrl }))
+        );
+        setCandidates(current =>
+          current.map(candidate => {
+            const visionFeatures = featuresByPlanId.get(candidate.id);
+            if (!visionFeatures) return candidate;
+            return {
+              ...candidate,
+              intendedFeatures: createFeatureVector(visionFeatures)
+            };
+          })
+        );
+        setTraceEvents(current => [
+          createTrace(
+            'batch_generated',
+            `Vision analysis complete`,
+            `Scored ${featuresByPlanId.size} images on 24 features.`
+          ),
+          ...current
+        ]);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Vision analysis failed.';
+        setTraceEvents(current => [
+          createTrace('batch_generated', 'Vision analysis fallback', message),
+          ...current
+        ]);
+      }
+    })();
+    pendingVisionRef.current = visionPromise;
+    void visionPromise.finally(() => {
+      if (pendingVisionRef.current === visionPromise) {
+        pendingVisionRef.current = null;
+      }
+    });
   }, [feedbackEvents, lastLikedImageUrl, onboarding]);
 
   const startSession = () => {
@@ -379,6 +381,9 @@ function PreferenceSwipePrototype() {
   }, [batchNumber]);
 
   useEffect(() => {
+    if (!SHOW_CLARIFICATION) {
+      return;
+    }
     if (phase !== 'studio' || !batchComplete) {
       return;
     }
@@ -395,7 +400,7 @@ function PreferenceSwipePrototype() {
     return () => {
       cancelled = true;
     };
-  }, [batchComplete, batchNumber, feedbackEvents, onboarding, phase, preferenceState]);
+  }, [SHOW_CLARIFICATION, batchComplete, batchNumber, feedbackEvents, onboarding, phase, preferenceState]);
 
   const submitFeedback = useCallback(
     (candidate: ImageCandidate | null, action: FeedbackAction, source: FeedbackEvent['source'] = 'button') => {
@@ -488,7 +493,15 @@ function PreferenceSwipePrototype() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeCandidate, batchComplete, phase, submitFeedback]);
 
-  const handleGenerateNext = () => {
+  const handleGenerateNext = async () => {
+    if (pendingVisionRef.current) {
+      setIsAwaitingVision(true);
+      try {
+        await pendingVisionRef.current;
+      } finally {
+        setIsAwaitingVision(false);
+      }
+    }
     const next = batchNumber + 1;
     setBatchNumber(next);
     void generateNextBatch(preferenceState, next);
@@ -829,9 +842,14 @@ function PreferenceSwipePrototype() {
                   <Check size={28} />
                   <h2>Four signals captured</h2>
                   <p>{preferenceState.currentGenerationGuidance.testNext[0] || preferenceState.summary}</p>
-                  <button className="swipe-primary-button" type="button" onClick={handleGenerateNext}>
+                  <button
+                    className="swipe-primary-button"
+                    type="button"
+                    onClick={handleGenerateNext}
+                    disabled={isAwaitingVision}
+                  >
                     <Sparkles size={18} />
-                    Generate next 4
+                    {isAwaitingVision ? 'Finishing analysis…' : 'Generate next 4'}
                   </button>
                 </div>
               ) : null}
@@ -962,23 +980,25 @@ function PreferenceSwipePrototype() {
         </section>
 
         <aside className="swipe-ai-rail" aria-label="Dynamic clarification">
-          <section className={`swipe-ai-bubble swipe-ai-bubble--${bubbleAction.mode}`}>
-            <div className="swipe-section-heading">
-              <MessageCircleQuestion size={16} />
-              <h2>Expert clarification</h2>
-            </div>
-            <span className="swipe-ai-mode">{bubbleAction.mode.replace('_', ' ')}</span>
-            <p>{bubbleAction.message}</p>
-            {bubbleAction.options.length ? (
-              <div className="swipe-ai-options">
-                {bubbleAction.options.map(option => (
-                  <button type="button" key={option} onClick={() => handleBubbleAnswer(option)}>
-                    {option}
-                  </button>
-                ))}
+          {SHOW_CLARIFICATION && (
+            <section className={`swipe-ai-bubble swipe-ai-bubble--${bubbleAction.mode}`}>
+              <div className="swipe-section-heading">
+                <MessageCircleQuestion size={16} />
+                <h2>Expert clarification</h2>
               </div>
-            ) : null}
-          </section>
+              <span className="swipe-ai-mode">{bubbleAction.mode.replace('_', ' ')}</span>
+              <p>{bubbleAction.message}</p>
+              {bubbleAction.options.length ? (
+                <div className="swipe-ai-options">
+                  {bubbleAction.options.map(option => (
+                    <button type="button" key={option} onClick={() => handleBubbleAnswer(option)}>
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </section>
+          )}
 
           <section className="swipe-rail-block">
             <h3>Generation guidance</h3>
@@ -992,10 +1012,12 @@ function PreferenceSwipePrototype() {
             </div>
           </section>
 
-          <section className="swipe-rail-block">
-            <h3>Why this bubble appeared</h3>
-            <p className="swipe-muted">{bubbleAction.internalReason}</p>
-          </section>
+          {SHOW_CLARIFICATION && (
+            <section className="swipe-rail-block">
+              <h3>Why this bubble appeared</h3>
+              <p className="swipe-muted">{bubbleAction.internalReason}</p>
+            </section>
+          )}
         </aside>
       </main>
     </div>

@@ -18,7 +18,7 @@ OPENAI_IMAGE_GENERATION_URL = "https://api.openai.com/v1/images/generations"
 OPENAI_IMAGE_EDITS_URL = "https://api.openai.com/v1/images/edits"
 MAX_IMAGE_ATTEMPTS = 3
 RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503, 504}
-GEMINI_BATCH_LIMIT = 3  # Use Gemini for batches 1-3, switch to OpenAI for 4+.
+GEMINI_BATCH_LIMIT = 100  # Test config: use Gemini for everything. Reset to 3 to re-enable OpenAI for batch 4+.
 
 
 def _decode_data_url(data_url: str) -> Optional[bytes]:
