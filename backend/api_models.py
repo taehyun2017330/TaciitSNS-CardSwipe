@@ -7,19 +7,19 @@ class SwipeImagePlanRequest(BaseModel):
     id: str
     prompt: str
     negativePrompt: str = ""
-    strategy: str = ""
-    hypothesis: str = ""
 
 
 class SwipeImageGenerationRequest(BaseModel):
     brandName: str = ""
     category: str = ""
     goal: str = ""
+    audience: str = ""
+    tone: str = ""
+    avoid: str = ""
     plans: List[SwipeImagePlanRequest]
     model: str = "gpt-image-2"
     size: str = "1024x1024"
     quality: str = "medium"
-    outputFormat: str = "png"
 
 
 class SwipeGeneratedImage(BaseModel):

@@ -6,3 +6,6 @@ backend/__pycache__/
 backend/services/__pycache__/
 backend/.env
 .DS_Store
+.env 
+.claude/*
+.claude

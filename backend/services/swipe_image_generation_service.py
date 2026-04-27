@@ -17,33 +17,58 @@ MAX_IMAGE_ATTEMPTS = 3
 RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503, 504}
 
 
+def _strip_avoid_prefix(text: str) -> str:
+    cleaned = text.strip().rstrip(".")
+    lowered = cleaned.lower()
+    for prefix in ("avoid ", "avoiding "):
+        if lowered.startswith(prefix):
+            return cleaned[len(prefix):].strip()
+    return cleaned
+
+
 def _build_image_prompt(
     plan: SwipeImagePlanRequest,
     request: SwipeImageGenerationRequest,
 ) -> str:
-    negative = plan.negativePrompt.strip()
-    avoid_line = f"\nAvoid: {negative}" if negative else ""
-    brand_line = f"Brand/project: {request.brandName}".strip()
-    category_line = f"Category: {request.category}".strip()
-    goal_line = f"Goal: {request.goal}".strip()
+    sections: list[str] = []
 
-    return f"""Create a square social media marketing image.
-{brand_line}
-{category_line}
-{goal_line}
-Strategy: {plan.strategy or "preference-steered candidate"}
-Hypothesis being tested: {plan.hypothesis or "unknown"}
+    opener = f"Square 1024x1024 social media marketing post for {request.brandName.strip()}." \
+        if request.brandName.strip() else "Square 1024x1024 social media marketing post."
+    sections.append(opener)
 
-Creative direction:
-{plan.prompt}
-{avoid_line}
+    descriptor_parts: list[str] = []
+    if request.category.strip():
+        descriptor_parts.append(f"a {request.category.strip()} brand")
+    if request.audience.strip():
+        descriptor_parts.append(f"speaking to {request.audience.strip()}")
+    if descriptor_parts:
+        sections.append("The brand is " + ", ".join(descriptor_parts) + ".")
 
-Output requirements:
-- Finished 1024x1024 social post image.
-- Premium, credible, editorial quality suitable for a small business.
-- Strong visual hierarchy with product/campaign feel.
-- If text appears, keep it sparse, large, and readable.
-- Do not include watermarks, UI chrome, or placeholder labels."""
+    if request.goal.strip():
+        sections.append(f"Campaign goal: {request.goal.strip()}.")
+    if request.tone.strip():
+        sections.append(f"Brand tone: {request.tone.strip()}.")
+
+    sections.append("")
+    sections.append(plan.prompt.strip())
+
+    avoidance: list[str] = []
+    if plan.negativePrompt.strip():
+        avoidance.append(_strip_avoid_prefix(plan.negativePrompt))
+    if request.avoid.strip():
+        avoidance.append(_strip_avoid_prefix(request.avoid))
+    if avoidance:
+        sections.append("")
+        sections.append("Avoid: " + "; ".join(part for part in avoidance if part) + ".")
+
+    sections.append("")
+    sections.append(
+        "Deliver editorial, premium quality with strong visual hierarchy and a credible "
+        "product/campaign feel. Any on-image text should be sparse, large, and legible. "
+        "No watermarks, UI chrome, or placeholder labels."
+    )
+
+    return "\n".join(sections)
 
 
 async def _generate_one_image(
@@ -60,9 +85,6 @@ async def _generate_one_image(
         "quality": request.quality,
         "n": 1,
     }
-
-    if request.outputFormat:
-        payload["output_format"] = request.outputFormat
 
     last_error = ""
     for attempt in range(1, MAX_IMAGE_ATTEMPTS + 1):
@@ -82,7 +104,7 @@ async def _generate_one_image(
             image_url = first_image.get("url")
 
             if b64_json:
-                image_url = f"data:image/{request.outputFormat or 'png'};base64,{b64_json}"
+                image_url = f"data:image/png;base64,{b64_json}"
 
             if not image_url:
                 return None, f"No image data returned for plan {plan.id}."
