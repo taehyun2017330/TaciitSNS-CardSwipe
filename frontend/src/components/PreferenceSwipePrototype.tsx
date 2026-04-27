@@ -30,12 +30,23 @@ import {
   createFeatureVector,
   createInitialPreferenceState,
   extractReasonFacets,
-  generateBatch,
   getTopFacets,
   selectBubbleAction,
   updateStateFromFeedback
 } from '../preference/model';
+import { requestImageAnalysis } from '../preference/analysis';
+import { requestClarification } from '../preference/clarification';
+import {
+  clearSession,
+  loadSession,
+  saveSession
+} from '../preference/persistence';
+import {
+  requestSynthesizedPlans,
+  synthesizedPlanToCandidate
+} from '../preference/synthesis';
 import type {
+  BubbleAction,
   FeedbackAction,
   FeedbackEvent,
   ImageCandidate,
@@ -50,8 +61,13 @@ import './PreferenceSwipePrototype.css';
 
 async function requestOpenAiImages(
   onboarding: OnboardingState,
-  selectedCandidates: ImageCandidate[]
+  selectedCandidates: ImageCandidate[],
+  referenceImageUrl: string | null = null
 ): Promise<SwipeImageGenerationResponse> {
+  const exploitIndex = referenceImageUrl
+    ? selectedCandidates.findIndex(candidate => candidate.strategy === 'exploit')
+    : -1;
+
   const response = await apiFetch('/api/swipe/generate-images', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -62,10 +78,12 @@ async function requestOpenAiImages(
       audience: onboarding.audience,
       tone: onboarding.tone.join(', '),
       avoid: onboarding.avoid,
-      plans: selectedCandidates.map(candidate => ({
+      referenceImageUrl: referenceImageUrl ?? '',
+      plans: selectedCandidates.map((candidate, index) => ({
         id: candidate.id,
         prompt: candidate.prompt,
-        negativePrompt: candidate.negativePrompt
+        negativePrompt: candidate.negativePrompt,
+        useReference: index === exploitIndex
       }))
     })
   });
@@ -139,49 +157,74 @@ function PreferenceSwipePrototype() {
   const [showDebug, setShowDebug] = useState(true);
   const [isGeneratingImages, setIsGeneratingImages] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
+  const [lastLikedImageUrl, setLastLikedImageUrl] = useState<string | null>(null);
+  const [llmBubble, setLlmBubble] = useState<BubbleAction | null>(null);
 
   const activeCandidate = candidates[activeIndex] ?? null;
   const isActiveCandidatePending = activeCandidate?.generationStatus === 'generating';
   const isGeneratingBatch = isGeneratingImages || candidates.some(candidate => candidate.generationStatus === 'generating');
   const generatedImageCount = candidates.filter(candidate => candidate.generationStatus === 'generated').length;
+  const imagesRendered = candidates.length > 0 && candidates.every(candidate => candidate.imageUrl || candidate.generationStatus === 'failed');
+  const analysisInFlight = imagesRendered && candidates.some(candidate => candidate.generationStatus === 'generating');
   const batchFeedback = feedbackEvents.filter(event => event.batchId === `batch-${batchNumber}`);
   const batchComplete = candidates.length > 0 && batchFeedback.length >= candidates.length;
 
-  const bubbleAction = useMemo(
+  const localBubble = useMemo(
     () => selectBubbleAction(preferenceState, feedbackEvents, batchComplete),
     [batchComplete, feedbackEvents, preferenceState]
   );
+  const bubbleAction: BubbleAction = llmBubble ?? localBubble;
 
-  const generateNextBatch = useCallback(async (nextState: PreferenceState, nextBatchNumber: number, nextOnboarding = onboarding) => {
-    const batch = generateBatch(nextOnboarding, nextState, nextBatchNumber);
-    const generatingCandidates = batch.candidates.map(candidate => ({
-      ...candidate,
-      generationStatus: 'generating' as const
-    }));
-
-    setPromptPlans(batch.promptPlans);
-    setCandidates(generatingCandidates);
+  const generateNextBatch = useCallback(async (nextState: PreferenceState, nextBatchNumber: number, nextOnboarding = onboarding, recentFeedback: FeedbackEvent[] = feedbackEvents, referenceImageUrl: string | null = lastLikedImageUrl) => {
+    setIsGeneratingImages(true);
+    setGenerationError(null);
     setActiveIndex(0);
     setIsGridOpen(false);
     setReasonText('');
     setReasonChips([]);
-    setGenerationError(null);
+
+    let candidatesForBatch: ImageCandidate[] = [];
+    try {
+      const synthesized = await requestSynthesizedPlans(nextOnboarding, nextState, recentFeedback, nextBatchNumber);
+      if (!synthesized.length) {
+        throw new Error('Synthesis returned no plans.');
+      }
+      candidatesForBatch = synthesized.map((plan, index) => ({
+        ...synthesizedPlanToCandidate(plan, index, nextBatchNumber),
+        generationStatus: 'generating' as const
+      }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Prompt synthesis failed.';
+      setGenerationError(`Could not synthesize prompts: ${message}`);
+      setIsGeneratingImages(false);
+      setTraceEvents(current => [
+        createTrace('batch_generated', 'Synthesis failed', message),
+        ...current
+      ]);
+      return;
+    }
+
+    setPromptPlans(candidatesForBatch);
+    setCandidates(candidatesForBatch);
     setTraceEvents(current => [
       createTrace(
         'batch_generated',
-        `Generated slate ${nextBatchNumber}`,
-        `${OPENAI_IMAGE_MODEL}, ${OPENAI_IMAGE_SIZE}, ${OPENAI_IMAGE_QUALITY}. ${batch.candidates.map(candidate => `${candidate.strategy}: ${candidate.tags.join(', ')}`).join(' | ')}`
+        `Synthesized slate ${nextBatchNumber}`,
+        candidatesForBatch.map(candidate => `${candidate.strategy}: ${candidate.hypothesis}`).join(' | ')
       ),
       ...current
     ]);
 
-    setIsGeneratingImages(true);
+    let generatedImages: SwipeImageGenerationResponse['images'] = [];
     try {
       const [response] = await Promise.all([
-        requestOpenAiImages(nextOnboarding, batch.candidates),
+        requestOpenAiImages(nextOnboarding, candidatesForBatch, referenceImageUrl),
         delay(700)
       ]);
+      generatedImages = response.images;
       const imagesByPlanId = new Map(response.images.map(image => [image.planId, image]));
+      // Set imageUrl so cards render immediately, but keep status='generating' to
+      // block swipes until vision analysis returns features.
       setCandidates(current =>
         current.map(candidate => {
           const image = imagesByPlanId.get(candidate.id);
@@ -192,20 +235,18 @@ function PreferenceSwipePrototype() {
               generationError: response.errors[0] || 'No generated image returned for this plan.'
             };
           }
-
           return {
             ...candidate,
             imageUrl: image.imageUrl,
-            generatedPrompt: image.revisedPrompt || image.prompt,
-            generationStatus: 'generated' as const
+            generatedPrompt: image.revisedPrompt || image.prompt
           };
         })
       );
       setTraceEvents(current => [
         createTrace(
           'batch_generated',
-          `OpenAI images ready`,
-          `${response.images.length}/4 generated with ${response.model}, ${response.size}, ${response.quality}.`
+          `Images ready, analyzing visuals`,
+          `${response.images.length}/${candidatesForBatch.length} generated with ${response.model}, ${response.size}, ${response.quality}.`
         ),
         ...current
       ]);
@@ -226,22 +267,135 @@ function PreferenceSwipePrototype() {
         createTrace('batch_generated', 'OpenAI generation fallback', message),
         ...current
       ]);
+      setIsGeneratingImages(false);
+      return;
+    }
+
+    try {
+      const featuresByPlanId = await requestImageAnalysis(
+        generatedImages.map(image => ({ planId: image.planId, imageUrl: image.imageUrl }))
+      );
+      setCandidates(current =>
+        current.map(candidate => {
+          if (candidate.generationStatus === 'failed') {
+            return candidate;
+          }
+          const visionFeatures = featuresByPlanId.get(candidate.id);
+          return {
+            ...candidate,
+            generationStatus: 'generated' as const,
+            intendedFeatures: visionFeatures ? createFeatureVector(visionFeatures) : candidate.intendedFeatures
+          };
+        })
+      );
+      setTraceEvents(current => [
+        createTrace(
+          'batch_generated',
+          `Vision analysis complete`,
+          `Scored ${featuresByPlanId.size} images on 24 features.`
+        ),
+        ...current
+      ]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Vision analysis failed.';
+      // Still mark images as generated so swipes unlock; preference math falls back
+      // to the (empty) intendedFeatures, so swipe-update only reflects reason text.
+      setCandidates(current =>
+        current.map(candidate =>
+          candidate.generationStatus === 'failed'
+            ? candidate
+            : { ...candidate, generationStatus: 'generated' as const }
+        )
+      );
+      setTraceEvents(current => [
+        createTrace('batch_generated', 'Vision analysis fallback', message),
+        ...current
+      ]);
     } finally {
       setIsGeneratingImages(false);
     }
-  }, [onboarding]);
+  }, [feedbackEvents, lastLikedImageUrl, onboarding]);
 
   const startSession = () => {
+    const saved = loadSession(onboarding.brandName, onboarding.category);
+
+    if (saved) {
+      setOnboarding(saved.onboarding);
+      setPreferenceState(saved.preferenceState);
+      setFeedbackEvents(saved.feedbackEvents);
+      setBatchNumber(saved.batchNumber);
+      setTraceEvents([
+        createTrace(
+          'session_started',
+          'Resumed saved session',
+          `${saved.onboarding.brandName} · ${saved.feedbackEvents.length} prior swipes · saved ${saved.savedAt}`
+        )
+      ]);
+      const nextBatch = saved.batchNumber + 1;
+      setBatchNumber(nextBatch);
+      void generateNextBatch(saved.preferenceState, nextBatch, saved.onboarding, saved.feedbackEvents);
+      setPhase('studio');
+      return;
+    }
+
     const nextState = createInitialPreferenceState(onboarding);
     setPreferenceState(nextState);
     setFeedbackEvents([]);
+    setLastLikedImageUrl(null);
     setTraceEvents([
       createTrace('session_started', 'Session started', `${onboarding.brandName} - ${onboarding.category}`)
     ]);
     setBatchNumber(1);
-    void generateNextBatch(nextState, 1, onboarding);
+    void generateNextBatch(nextState, 1, onboarding, [], null);
     setPhase('studio');
   };
+
+  const forgetSavedMemory = () => {
+    clearSession(onboarding.brandName, onboarding.category);
+    const nextState = createInitialPreferenceState(onboarding);
+    setPreferenceState(nextState);
+    setFeedbackEvents([]);
+    setLastLikedImageUrl(null);
+    setBatchNumber(1);
+    setTraceEvents(current => [
+      createTrace('session_started', 'Cleared saved memory', `Wiped persisted state for ${onboarding.brandName}.`),
+      ...current
+    ]);
+    void generateNextBatch(nextState, 1, onboarding, [], null);
+  };
+
+  useEffect(() => {
+    if (phase !== 'studio') {
+      return;
+    }
+    if (feedbackEvents.length === 0 && batchNumber <= 1) {
+      return;
+    }
+    saveSession(onboarding, preferenceState, feedbackEvents, batchNumber);
+  }, [batchNumber, feedbackEvents, onboarding, phase, preferenceState]);
+
+  useEffect(() => {
+    setLlmBubble(null);
+  }, [batchNumber]);
+
+  useEffect(() => {
+    if (phase !== 'studio' || !batchComplete) {
+      return;
+    }
+    let cancelled = false;
+    void requestClarification(onboarding, preferenceState, feedbackEvents, batchComplete)
+      .then(bubble => {
+        if (!cancelled && bubble) {
+          setLlmBubble(bubble);
+        }
+      })
+      .catch(error => {
+        console.warn('[clarification] request failed', error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [batchComplete, batchNumber, feedbackEvents, onboarding, phase, preferenceState]);
 
   const submitFeedback = useCallback(
     (candidate: ImageCandidate | null, action: FeedbackAction, source: FeedbackEvent['source'] = 'button') => {
@@ -276,6 +430,9 @@ function PreferenceSwipePrototype() {
 
       setFeedbackEvents(nextFeedbackEvents);
       setPreferenceState(nextState);
+      if (action === 'like' && candidate.imageUrl) {
+        setLastLikedImageUrl(candidate.imageUrl);
+      }
       setTraceEvents(current => [
         createTrace(
           action === 'like' ? 'image_liked' : 'image_disliked',
@@ -519,6 +676,14 @@ function PreferenceSwipePrototype() {
                 <dd>{batchNumber}</dd>
               </div>
             </dl>
+            <button
+              type="button"
+              className="swipe-link-button"
+              onClick={forgetSavedMemory}
+              title="Wipe persisted state for this brand"
+            >
+              Forget saved memory
+            </button>
           </section>
 
           <section className="swipe-rail-block">
@@ -608,8 +773,17 @@ function PreferenceSwipePrototype() {
                 <Sparkles size={18} />
               </div>
               <div>
-                <strong>Generating images with {OPENAI_IMAGE_MODEL}</strong>
-                <p>{OPENAI_IMAGE_SIZE} · {OPENAI_IMAGE_QUALITY} quality · {generatedImageCount} of {candidates.length || 4} returned</p>
+                {analysisInFlight ? (
+                  <>
+                    <strong>Analyzing visuals to unlock swipes…</strong>
+                    <p>Reading palette, composition, and mood with vision (~5s).</p>
+                  </>
+                ) : (
+                  <>
+                    <strong>Generating images with {OPENAI_IMAGE_MODEL}</strong>
+                    <p>{OPENAI_IMAGE_SIZE} · {OPENAI_IMAGE_QUALITY} quality · {generatedImageCount} of {candidates.length || 4} returned</p>
+                  </>
+                )}
               </div>
               <div className="swipe-generation-loading__bar" aria-hidden="true">
                 <i />

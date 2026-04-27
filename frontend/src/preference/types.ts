@@ -187,6 +187,7 @@ export interface SwipeGeneratedImageResponse {
   quality: string;
   prompt: string;
   revisedPrompt?: string;
+  analyzedFeatures?: Partial<FeatureVector>;
 }
 
 export interface SwipeImageGenerationResponse {
@@ -195,4 +196,16 @@ export interface SwipeImageGenerationResponse {
   quality: string;
   images: SwipeGeneratedImageResponse[];
   errors: string[];
+}
+
+export interface SynthesizedPlanResponse {
+  id: string;
+  strategy: string;
+  hypothesis: string;
+  prompt: string;
+  negativePrompt: string;
+}
+
+export interface SwipePromptSynthesisResponse {
+  plans: SynthesizedPlanResponse[];
 }

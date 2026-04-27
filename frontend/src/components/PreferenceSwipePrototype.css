@@ -277,6 +277,23 @@
   transform: translateY(-1px);
 }
 
+.swipe-link-button {
+  margin-top: 0.5rem;
+  padding: 0;
+  background: none;
+  border: none;
+  color: rgba(97, 81, 59, 0.7);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.swipe-link-button:hover {
+  color: var(--accent-strong);
+}
+
 .swipe-workbench {
   width: min(100%, 96rem);
   min-height: calc(100vh - 4.1rem);

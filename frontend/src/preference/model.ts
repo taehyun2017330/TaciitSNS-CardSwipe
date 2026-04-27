@@ -619,87 +619,24 @@ export function selectBubbleAction(
   feedbackEvents: FeedbackEvent[],
   batchComplete: boolean
 ): BubbleAction {
-  const recentQuestions = new Set(state.questionHistory.slice(-4));
-  const latestFeedback = feedbackEvents[feedbackEvents.length - 1];
-  const latestReason = latestFeedback?.reasonText || latestFeedback?.reasonChips.join(' ') || '';
-
-  const unresolved = state.unresolvedTerms.find(term => !term.asked && term.mappingConfidence < 0.55);
-  if (unresolved && latestReason.toLowerCase().includes(unresolved.term)) {
-    const message =
-      unresolved.term === 'premium'
-        ? 'When you say "premium," what should I change first?'
-        : unresolved.term === 'blue'
-          ? 'Should blue be avoided completely, or is it okay when it feels sunny and secondary?'
-          : `When you say "${unresolved.term}," what should I treat as the real issue?`;
-
-    if (!recentQuestions.has(message)) {
-      return {
-        mode: 'probe',
-        message,
-        options: unresolved.possibleMeanings,
-        unresolvedTerm: unresolved.term,
-        internalReason: `Low mapping confidence for "${unresolved.term}" (${unresolved.mappingConfidence.toFixed(2)}).`
-      };
-    }
-  }
-
-  const contradiction = state.contradictions.find(item => !item.asked && item.severity > 0.65);
-  if (contradiction && feedbackEvents.length >= 6) {
-    const message = `${contradiction.message} Has the goal changed?`;
-    if (!recentQuestions.has(message)) {
-      return {
-        mode: 'challenge',
-        message,
-        options: ['My goal changed', 'Same goal, wrong earlier execution', 'Still want that energy, just cleaner'],
-        target: contradiction.feature,
-        internalReason: `Global weight ${contradiction.globalWeight.toFixed(2)} conflicts with recent weight ${contradiction.recentWeight.toFixed(2)}.`
-      };
-    }
-  }
-
-  const ambiguity = state.ambiguities.find(item => !item.asked && item.priority > 0.7);
-  if (ambiguity && (batchComplete || feedbackEvents.length >= 3)) {
-    const message = `I need to separate two things: ${ambiguity.question}.`;
-    if (!recentQuestions.has(message)) {
-      return {
-        mode: 'clarify',
-        message,
-        options: ambiguity.options,
-        target: ambiguity.feature,
-        internalReason: `Ambiguity priority ${ambiguity.priority.toFixed(2)} for ${FEATURE_META[ambiguity.feature].label}.`
-      };
-    }
-  }
-
-  const positives = getTopFacets(state, 'positive', 3);
-  const negatives = getTopFacets(state, 'negative', 2);
-  const supportCount = positives.reduce((sum, facet) => sum + facet.evidenceFor.length, 0);
-  const oppositionCount = negatives.reduce((sum, facet) => sum + facet.evidenceAgainst.length, 0);
-  const summaryConfidence = positives.reduce((sum, facet) => sum + facet.confidence, 0) / Math.max(1, positives.length);
-
-  if (batchComplete && supportCount + oppositionCount >= 4 && summaryConfidence > 0.54) {
-    const message = `I’m reading your taste as: ${state.summary}`;
-    if (!recentQuestions.has(message)) {
-      return {
-        mode: 'summarize',
-        message,
-        options: ['Yes, that is right', 'Mostly right', 'No, revise that'],
-        internalReason: `Stable summary with ${supportCount + oppositionCount} evidence points and ${summaryConfidence.toFixed(2)} mean confidence.`
-      };
-    }
-  }
-
-  const passive =
-    state.currentGenerationGuidance.testNext[0]
-      ? `I’m testing ${state.currentGenerationGuidance.testNext[0]}.`
+  // Mid-batch placeholder. The LLM clarification (preference/clarification.ts) takes
+  // over once a batch completes and produces all real questions.
+  const message = batchComplete
+    ? 'Reading your latest swipes…'
+    : state.currentGenerationGuidance.testNext[0]
+      ? `Testing ${state.currentGenerationGuidance.testNext[0]}.`
       : state.summary !== 'Waiting for swipe evidence.'
         ? state.summary
-        : 'Swipe a few examples and I’ll turn the pattern into steering memory.';
+        : feedbackEvents.length === 0
+          ? 'Swipe a few examples and I will turn the pattern into steering memory.'
+          : 'Watching your swipes — I will surface a question when the next batch completes.';
 
   return {
     mode: 'idle_insight',
-    message: passive,
+    message,
     options: [],
-    internalReason: 'No question cleared the information-gain threshold.'
+    internalReason: batchComplete
+      ? 'Awaiting LLM clarification call.'
+      : 'Mid-batch — LLM clarification fires when batch completes.'
   };
 }

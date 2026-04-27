@@ -1,6 +1,7 @@
 import asyncio
+import base64
 import os
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import httpx
 
@@ -13,8 +14,19 @@ from api_models import (
 
 
 OPENAI_IMAGE_GENERATION_URL = "https://api.openai.com/v1/images/generations"
+OPENAI_IMAGE_EDITS_URL = "https://api.openai.com/v1/images/edits"
 MAX_IMAGE_ATTEMPTS = 3
 RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503, 504}
+
+
+def _decode_data_url(data_url: str) -> Optional[bytes]:
+    if not data_url.startswith("data:"):
+        return None
+    try:
+        _, b64 = data_url.split(",", 1)
+        return base64.b64decode(b64)
+    except Exception:
+        return None
 
 
 def _strip_avoid_prefix(text: str) -> str:
@@ -71,13 +83,32 @@ def _build_image_prompt(
     return "\n".join(sections)
 
 
-async def _generate_one_image(
+async def _call_openai_image_api(
     client: httpx.AsyncClient,
     api_key: str,
     request: SwipeImageGenerationRequest,
     plan: SwipeImagePlanRequest,
-) -> Tuple[SwipeGeneratedImage | None, str | None]:
-    prompt = _build_image_prompt(plan, request)
+    prompt: str,
+) -> httpx.Response:
+    use_reference = plan.useReference and request.referenceImageUrl
+    reference_bytes = _decode_data_url(request.referenceImageUrl) if use_reference else None
+
+    if use_reference and reference_bytes:
+        files = {"image": ("reference.png", reference_bytes, "image/png")}
+        data = {
+            "model": request.model,
+            "prompt": prompt,
+            "size": request.size,
+            "quality": request.quality,
+            "n": "1",
+        }
+        return await client.post(
+            OPENAI_IMAGE_EDITS_URL,
+            headers={"Authorization": f"Bearer {api_key}"},
+            data=data,
+            files=files,
+        )
+
     payload: Dict[str, object] = {
         "model": request.model,
         "prompt": prompt,
@@ -85,18 +116,28 @@ async def _generate_one_image(
         "quality": request.quality,
         "n": 1,
     }
+    return await client.post(
+        OPENAI_IMAGE_GENERATION_URL,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        json=payload,
+    )
+
+
+async def _generate_one_image(
+    client: httpx.AsyncClient,
+    api_key: str,
+    request: SwipeImageGenerationRequest,
+    plan: SwipeImagePlanRequest,
+) -> Tuple[SwipeGeneratedImage | None, str | None]:
+    prompt = _build_image_prompt(plan, request)
 
     last_error = ""
     for attempt in range(1, MAX_IMAGE_ATTEMPTS + 1):
         try:
-            response = await client.post(
-                OPENAI_IMAGE_GENERATION_URL,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json=payload,
-            )
+            response = await _call_openai_image_api(client, api_key, request, plan, prompt)
             response.raise_for_status()
             body = response.json()
             first_image = (body.get("data") or [{}])[0]
@@ -118,6 +159,7 @@ async def _generate_one_image(
                     quality=request.quality,
                     prompt=prompt,
                     revisedPrompt=first_image.get("revised_prompt") or "",
+                    analyzedFeatures={},
                 ),
                 None,
             )
