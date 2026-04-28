@@ -1,50 +1,21 @@
 import json
-import os
-from typing import Dict, List
+from typing import Any, Dict, List
 
 import httpx
+
+from services.facet_catalog import feature_definitions, feature_keys, feature_schema
 
 
 OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
 VISION_MODEL = "gpt-4o-mini"
 VISION_TIMEOUT_SECONDS = 60.0
-
-FEATURE_KEYS: List[str] = [
-    "palette.brightness",
-    "palette.saturation",
-    "palette.warmth",
-    "palette.blueDominance",
-    "composition.minimal",
-    "composition.editorial",
-    "composition.dynamic",
-    "composition.cluttered",
-    "setting.coastal",
-    "setting.urban",
-    "setting.studio",
-    "lighting.sunny",
-    "lighting.moody",
-    "lighting.synthetic",
-    "typography.clean",
-    "typography.playful",
-    "marketing.saleEmphasis",
-    "marketing.subtlety",
-    "mood.premium",
-    "mood.credible",
-    "mood.playful",
-    "mood.energetic",
-    "mood.calm",
-    "mood.cheap",
-]
+FEATURE_KEYS: List[str] = feature_keys()
 
 
 def _feature_object_schema() -> dict:
-    feature_props = {
-        key: {"type": "number", "minimum": 0, "maximum": 1}
-        for key in FEATURE_KEYS
-    }
     return {
         "type": "object",
-        "properties": feature_props,
+        "properties": feature_schema(),
         "required": FEATURE_KEYS,
         "additionalProperties": False,
     }
@@ -60,8 +31,28 @@ _BATCH_RESPONSE_SCHEMA = {
                 "properties": {
                     "position": {"type": "integer"},
                     "features": _feature_object_schema(),
+                    "imageSummary": {"type": "string"},
+                    "rationaleSuggestions": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                    "likeRationaleSuggestions": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                    "dislikeRationaleSuggestions": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
                 },
-                "required": ["position", "features"],
+                "required": [
+                    "position",
+                    "features",
+                    "imageSummary",
+                    "rationaleSuggestions",
+                    "likeRationaleSuggestions",
+                    "dislikeRationaleSuggestions",
+                ],
                 "additionalProperties": False,
             },
         }
@@ -77,31 +68,15 @@ def _build_system_prompt() -> str:
         "score it on every visual feature from 0.0 (not present) to 1.0 (strongly present). "
         "Be honest — if a feature is absent, return a low score. Calibrated mid-range "
         "values matter; preference learning depends on the differences between images.\n\n"
+        "Also produce an imageSummary, 3-5 likeRationaleSuggestions, 3-5 "
+        "dislikeRationaleSuggestions, and a combined rationaleSuggestions list. These are "
+        "selectable chips shown after a human likes or dislikes the image. They must be "
+        "concrete, image-specific, and useful for preference learning. Like suggestions "
+        "should explain why someone might want more images like this. Dislike suggestions "
+        "should explain why someone might steer away from this image. Keep each suggestion "
+        "under 12 words and do not mention invisible implementation details.\n\n"
         "Feature definitions:\n"
-        "- palette.brightness: light/bright vs dark\n"
-        "- palette.saturation: vivid vs muted color\n"
-        "- palette.warmth: warm color temperature (reds/oranges/yellows)\n"
-        "- palette.blueDominance: blue is the dominant color family\n"
-        "- composition.minimal: spacious, restrained layout\n"
-        "- composition.editorial: magazine-like, refined hierarchy\n"
-        "- composition.dynamic: motion, asymmetry, energy in the layout\n"
-        "- composition.cluttered: busy, many competing elements\n"
-        "- setting.coastal: beach, water, sand, summer-outdoor\n"
-        "- setting.urban: city, street, architecture\n"
-        "- setting.studio: clean studio product shot\n"
-        "- lighting.sunny: natural bright daylight\n"
-        "- lighting.moody: low-key, dramatic, shadowed\n"
-        "- lighting.synthetic: neon, hard artificial, AI-glow\n"
-        "- typography.clean: refined, simple sans/serif\n"
-        "- typography.playful: bold, decorative, sticker-like\n"
-        "- marketing.saleEmphasis: prominent discount/sale messaging\n"
-        "- marketing.subtlety: offer is understated or absent\n"
-        "- mood.premium: high-end, expensive feel\n"
-        "- mood.credible: trustworthy, professional\n"
-        "- mood.playful: fun, light\n"
-        "- mood.energetic: exciting, kinetic\n"
-        "- mood.calm: quiet, restful\n"
-        "- mood.cheap: low-quality, generic, off-brand\n\n"
+        f"{feature_definitions()}\n\n"
         "Return one entry per image, in the order received. The 'position' field must "
         "match the image's index (0-based)."
     )
@@ -111,7 +86,7 @@ async def analyze_images(
     client: httpx.AsyncClient,
     api_key: str,
     image_urls: List[str],
-) -> List[Dict[str, float]]:
+) -> List[Dict[str, Any]]:
     if not image_urls:
         return []
 
@@ -120,7 +95,8 @@ async def analyze_images(
             "type": "text",
             "text": (
                 f"Score each of the {len(image_urls)} images. Return one entry per "
-                "image with its position (0-based)."
+                "image with its position (0-based), feature scores, one short imageSummary, "
+                "and rationaleSuggestions."
             ),
         }
     ]
@@ -165,12 +141,40 @@ async def analyze_images(
     parsed = json.loads(content)
     results = parsed.get("results") or []
 
-    by_position: Dict[int, Dict[str, float]] = {}
+    empty_features: Dict[str, float] = {key: 0.0 for key in FEATURE_KEYS}
+    empty_result: Dict[str, Any] = {
+        "features": empty_features,
+        "imageSummary": "",
+        "rationaleSuggestions": [],
+        "likeRationaleSuggestions": [],
+        "dislikeRationaleSuggestions": [],
+    }
+    by_position: Dict[int, Dict[str, Any]] = {}
     for entry in results:
         pos = entry.get("position")
         features = entry.get("features") or {}
         if isinstance(pos, int):
-            by_position[pos] = {key: float(features.get(key, 0.0)) for key in FEATURE_KEYS}
+            suggestions = entry.get("rationaleSuggestions") or []
+            like_suggestions = entry.get("likeRationaleSuggestions") or []
+            dislike_suggestions = entry.get("dislikeRationaleSuggestions") or []
+            by_position[pos] = {
+                "features": {key: float(features.get(key, 0.0)) for key in FEATURE_KEYS},
+                "imageSummary": str(entry.get("imageSummary") or ""),
+                "rationaleSuggestions": [
+                    str(item).strip()
+                    for item in suggestions
+                    if str(item).strip()
+                ][:6],
+                "likeRationaleSuggestions": [
+                    str(item).strip()
+                    for item in like_suggestions
+                    if str(item).strip()
+                ][:5],
+                "dislikeRationaleSuggestions": [
+                    str(item).strip()
+                    for item in dislike_suggestions
+                    if str(item).strip()
+                ][:5],
+            }
 
-    empty: Dict[str, float] = {key: 0.0 for key in FEATURE_KEYS}
-    return [by_position.get(index, empty) for index in range(len(image_urls))]
+    return [by_position.get(index, empty_result) for index in range(len(image_urls))]

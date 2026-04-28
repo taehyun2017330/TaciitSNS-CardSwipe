@@ -33,10 +33,12 @@ The frontend runs on `http://127.0.0.1:3002/`.
 
 ## Image Generation
 
-The frontend asks the backend to generate four images with:
+The frontend builds eight-card batches. Each card is revealed only after image generation and rationale analysis both complete.
+
+The backend image request defaults are:
 
 - model: `gpt-image-2`
 - size: `1024x1024`
 - quality: `medium`
 
-If image generation fails, the UI keeps mock card fallbacks visible so interaction and preference-memory logic can still be tested.
+If image generation or rationale analysis fails for a card, the UI keeps that card in a failed placeholder state instead of showing an incomplete image.

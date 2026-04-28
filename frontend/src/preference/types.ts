@@ -1,34 +1,9 @@
+import type { FeatureKey, FeatureVector } from './features';
+
 export type FeedbackAction = 'like' | 'dislike';
 export type BubbleMode = 'idle_insight' | 'summarize' | 'probe' | 'clarify' | 'challenge';
-export type PromptStrategy = 'exploit' | 'explore' | 'diagnostic' | 'repair' | 'contrast';
-
-export type FeatureKey =
-  | 'palette.brightness'
-  | 'palette.saturation'
-  | 'palette.warmth'
-  | 'palette.blueDominance'
-  | 'composition.minimal'
-  | 'composition.editorial'
-  | 'composition.dynamic'
-  | 'composition.cluttered'
-  | 'setting.coastal'
-  | 'setting.urban'
-  | 'setting.studio'
-  | 'lighting.sunny'
-  | 'lighting.moody'
-  | 'lighting.synthetic'
-  | 'typography.clean'
-  | 'typography.playful'
-  | 'marketing.saleEmphasis'
-  | 'marketing.subtlety'
-  | 'mood.premium'
-  | 'mood.credible'
-  | 'mood.playful'
-  | 'mood.energetic'
-  | 'mood.calm'
-  | 'mood.cheap';
-
-export type FeatureVector = Record<FeatureKey, number>;
+export type PromptStrategy = 'exploit' | 'explore' | 'diagnostic' | 'repair' | 'contrast' | 'near_neighbor' | 'boundary_test';
+export type { FeatureKey, FeatureVector } from './features';
 
 export interface OnboardingState {
   brandName: string;
@@ -55,6 +30,7 @@ export interface PromptPlan {
   hypothesis: string;
   prompt: string;
   negativePrompt: string;
+  targetAttributes: string[];
   intendedFeatures: FeatureVector;
   scoreBreakdown: {
     preferenceMatch: number;
@@ -74,6 +50,11 @@ export interface ImageCandidate extends PromptPlan {
   generatedPrompt?: string;
   generationStatus?: 'mock' | 'generating' | 'generated' | 'failed';
   generationError?: string;
+  readyAt?: number;
+  imageSummary?: string;
+  suggestedRationales?: string[];
+  suggestedLikeRationales?: string[];
+  suggestedDislikeRationales?: string[];
   caption: string;
   tags: string[];
   visual: CandidateVisual;
@@ -85,6 +66,14 @@ export interface ExtractedReasonFacet {
   sentiment: 1 | -1;
   confidence: number;
   source: string;
+}
+
+export interface SemanticSignal {
+  label: string;
+  source: string;
+  feedbackEventId: string;
+  polarity: 1 | -1;
+  confidence: number;
 }
 
 export interface FeedbackEvent {
@@ -103,12 +92,28 @@ export interface PreferenceFacet {
   feature: FeatureKey;
   label: string;
   dimension: string;
+  alpha: number;
+  beta: number;
+  mean: number;
   weight: number;
+  directionConfidence: number;
+  evidenceConfidence: number;
   confidence: number;
+  evidenceVolume: number;
   evidenceFor: string[];
   evidenceAgainst: string[];
   sourceTypes: Array<'swipe' | 'reason' | 'clarification' | 'onboarding'>;
   lastSeenBatch: number;
+}
+
+export interface SemanticMemory {
+  likedDirections: SemanticSignal[];
+  dislikedDirections: SemanticSignal[];
+  hardAvoids: SemanticSignal[];
+  uncertainties: string[];
+  styleBrief: string;
+  positiveExemplars: string[];
+  negativeExemplars: string[];
 }
 
 export interface UnresolvedTerm {
@@ -142,6 +147,8 @@ export interface PreferenceState {
   version: number;
   summary: string;
   facets: Record<FeatureKey, PreferenceFacet>;
+  semanticMemory: SemanticMemory;
+  visionEvidenceImageIds: string[];
   unresolvedTerms: UnresolvedTerm[];
   ambiguities: AmbiguityRecord[];
   contradictions: ContradictionRecord[];
@@ -149,6 +156,8 @@ export interface PreferenceState {
     leanInto: string[];
     avoid: string[];
     testNext: string[];
+    semanticBrief: string;
+    strategyMix: PromptStrategy[];
   };
   lastExtractedFacets: ExtractedReasonFacet[];
   questionHistory: string[];
@@ -204,6 +213,7 @@ export interface SynthesizedPlanResponse {
   hypothesis: string;
   prompt: string;
   negativePrompt: string;
+  targetAttributes?: string[];
 }
 
 export interface SwipePromptSynthesisResponse {

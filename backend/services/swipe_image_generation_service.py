@@ -18,7 +18,7 @@ OPENAI_IMAGE_GENERATION_URL = "https://api.openai.com/v1/images/generations"
 OPENAI_IMAGE_EDITS_URL = "https://api.openai.com/v1/images/edits"
 MAX_IMAGE_ATTEMPTS = 3
 RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503, 504}
-GEMINI_BATCH_LIMIT = 100  # Test config: use Gemini for everything. Reset to 3 to re-enable OpenAI for batch 4+.
+GEMINI_BATCH_LIMIT = 100
 
 
 def _decode_data_url(data_url: str) -> Optional[bytes]:
@@ -62,6 +62,17 @@ def _build_image_prompt(
         sections.append(f"Campaign goal: {request.goal.strip()}.")
     if request.tone.strip():
         sections.append(f"Brand tone: {request.tone.strip()}.")
+    if request.batchNumber <= 1:
+        sections.append(
+            "Discovery batch instruction: preserve this plan's distinct visual lane. "
+            "Do not average it toward a generic product ad; make the composition, palette, "
+            "lighting, and staging clearly different from other plausible first-batch options."
+        )
+    else:
+        sections.append(
+            "Steering batch instruction: converge toward the current prompt direction while "
+            "keeping one or two diagnostic visual choices visible for preference learning."
+        )
 
     sections.append("")
     sections.append(plan.prompt.strip())
@@ -137,6 +148,23 @@ def _should_use_gemini(request: SwipeImageGenerationRequest, plan: SwipeImagePla
     return True
 
 
+async def _try_gemini_fallback(
+    client: httpx.AsyncClient,
+    gemini_key: str,
+    request: SwipeImageGenerationRequest,
+    plan: SwipeImagePlanRequest,
+    prompt: str,
+    prior_error: str,
+) -> Tuple[SwipeGeneratedImage | None, str | None]:
+    if not gemini_key or request.batchNumber > GEMINI_BATCH_LIMIT:
+        return None, prior_error
+
+    image, error = await generate_one_gemini_image(client, gemini_key, request, plan, prompt)
+    if image:
+        return image, None
+    return None, f"{prior_error}; Gemini fallback also failed: {error}"
+
+
 async def _generate_one_image(
     client: httpx.AsyncClient,
     openai_key: str,
@@ -183,13 +211,14 @@ async def _generate_one_image(
             detail = exc.response.text[:600] if exc.response is not None else str(exc)
             last_error = f"OpenAI image generation failed for plan {plan.id}: {detail}"
             if status_code not in RETRYABLE_STATUS_CODES or attempt == MAX_IMAGE_ATTEMPTS:
-                return None, last_error
+                return await _try_gemini_fallback(client, gemini_key, request, plan, prompt, last_error)
         except httpx.HTTPError as exc:
             last_error = f"OpenAI image generation failed for plan {plan.id}: {exc}"
             if attempt == MAX_IMAGE_ATTEMPTS:
-                return None, last_error
+                return await _try_gemini_fallback(client, gemini_key, request, plan, prompt, last_error)
         except Exception as exc:
-            return None, f"OpenAI image generation failed for plan {plan.id}: {exc}"
+            last_error = f"OpenAI image generation failed for plan {plan.id}: {exc}"
+            return await _try_gemini_fallback(client, gemini_key, request, plan, prompt, last_error)
 
         await asyncio.sleep(1.5 * attempt)
 
@@ -211,7 +240,7 @@ async def generate_swipe_images(
             async with semaphore:
                 return await _generate_one_image(client, openai_key, gemini_key, request, plan)
 
-        results = await asyncio.gather(*(run(plan) for plan in request.plans[:4]))
+        results = await asyncio.gather(*(run(plan) for plan in request.plans))
 
     images: List[SwipeGeneratedImage] = []
     errors: List[str] = []

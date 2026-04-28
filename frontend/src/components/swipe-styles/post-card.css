@@ -1,0 +1,289 @@
+.swipe-post-card {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid rgba(39, 35, 28, 0.13);
+  border-radius: 8px;
+  background: #e9ddc9;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+  isolation: isolate;
+}
+
+.swipe-post-card.is-generating {
+  filter: saturate(0.82);
+}
+
+.swipe-post-card.is-generating::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background:
+    linear-gradient(105deg, transparent 0%, rgba(255, 253, 249, 0.34) 42%, transparent 70%);
+  transform: translateX(-100%);
+  animation: swipe-card-shimmer 1.35s ease-in-out infinite;
+}
+
+.swipe-post-card__grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.18;
+  background-image:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(40, 30, 15, 0.08) 1px, transparent 1px);
+  background-size: 0.9rem 0.9rem;
+  mix-blend-mode: multiply;
+  z-index: 1;
+}
+
+.swipe-post-card__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.swipe-post-card--real-image {
+  background: #ede6d9;
+}
+
+.swipe-post-card.is-failed {
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(135deg, rgba(249, 235, 229, 0.94), rgba(255, 253, 249, 0.92)),
+    repeating-linear-gradient(45deg, rgba(126, 58, 41, 0.08) 0 1px, transparent 1px 12px);
+}
+
+.swipe-post-card__failure {
+  display: grid;
+  gap: 0.42rem;
+  width: 76%;
+  padding: 1rem;
+  border: 1px solid rgba(126, 58, 41, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 253, 249, 0.8);
+  color: #7e3a29;
+  text-align: center;
+}
+
+.swipe-post-card__failure strong {
+  color: #6d2f22;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.swipe-post-card__failure p {
+  margin: 0;
+  color: #8d3d2f;
+  font-size: 0.72rem;
+  font-weight: 750;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.swipe-post-card__status {
+  position: absolute;
+  left: 0.8rem;
+  right: 0.8rem;
+  bottom: 0.8rem;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.2rem;
+  padding: 0.36rem 0.52rem;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 999px;
+  background: rgba(28, 25, 19, 0.62);
+  color: #fffaf2;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  backdrop-filter: blur(10px);
+}
+
+.swipe-post-card__status--failed {
+  background: rgba(126, 58, 41, 0.72);
+}
+
+.swipe-post-card__media {
+  position: absolute;
+  inset: 0;
+}
+
+.swipe-post-card__plane,
+.swipe-post-card__product {
+  position: absolute;
+  display: block;
+  z-index: 2;
+}
+
+.swipe-post-card__plane--one {
+  width: 72%;
+  height: 38%;
+  left: 10%;
+  top: 13%;
+  transform: rotate(-7deg);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.36);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.swipe-post-card__plane--two {
+  width: 46%;
+  height: 56%;
+  right: 8%;
+  top: 22%;
+  transform: rotate(9deg);
+  border-radius: 8px;
+  background: rgba(34, 79, 72, 0.18);
+  border: 1px solid rgba(24, 56, 52, 0.12);
+}
+
+.swipe-post-card__product--one {
+  width: 29%;
+  height: 42%;
+  left: 17%;
+  bottom: 18%;
+  border-radius: 7px 7px 18px 18px;
+  background: rgba(35, 31, 26, 0.76);
+  transform: skewX(-4deg) rotate(-2deg);
+}
+
+.swipe-post-card__product--two {
+  width: 23%;
+  height: 30%;
+  right: 22%;
+  bottom: 22%;
+  border-radius: 999px 999px 8px 8px;
+  background: rgba(255, 252, 244, 0.74);
+  transform: rotate(6deg);
+}
+
+.swipe-post-card__copy {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  display: grid;
+  gap: 0.28rem;
+  padding: 1rem;
+  background: linear-gradient(180deg, transparent 0%, rgba(28, 25, 19, 0.72) 100%);
+  color: #fffaf2;
+}
+
+.swipe-post-card__copy span {
+  width: fit-content;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 0.28rem 0.42rem;
+  border: 1px solid rgba(255, 255, 255, 0.36);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.swipe-post-card__copy strong {
+  overflow-wrap: anywhere;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  line-height: 0.95;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.swipe-post-card__copy p {
+  max-width: 88%;
+  margin: 0;
+  color: rgba(255, 250, 242, 0.9);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.swipe-post-card--warm {
+  background: linear-gradient(135deg, #efd49d 0%, #cc795f 52%, #efe5c7 100%);
+}
+
+.swipe-post-card--bright {
+  background: linear-gradient(135deg, #f3d13f 0%, #ec8d63 44%, #559982 100%);
+}
+
+.swipe-post-card--dark {
+  background: linear-gradient(135deg, #27231f 0%, #675540 52%, #b09a78 100%);
+}
+
+.swipe-post-card--blue {
+  background: linear-gradient(135deg, #d6dfdf 0%, #55798e 48%, #24394b 100%);
+}
+
+.swipe-post-card--neon {
+  background: linear-gradient(135deg, #1f272c 0%, #346a7b 42%, #d55f4a 100%);
+}
+
+.swipe-post-card--linen {
+  background: linear-gradient(135deg, #f2eadc 0%, #d6c5a9 54%, #768b76 100%);
+}
+
+.swipe-post-card--playful {
+  background: linear-gradient(135deg, #f7c663 0%, #e86e77 50%, #7fb4a7 100%);
+}
+
+.swipe-post-card--sunny-blue {
+  background: linear-gradient(135deg, #eed288 0%, #d98b69 45%, #6aa2a8 100%);
+}
+
+.swipe-post-card--terra {
+  background: linear-gradient(135deg, #e7c18f 0%, #b96b50 52%, #314f45 100%);
+}
+
+.swipe-post-card--discount {
+  background: linear-gradient(135deg, #f1eee0 0%, #efb338 43%, #ba4d3f 100%);
+}
+
+.swipe-post-card--minimal .swipe-post-card__plane--one,
+.swipe-post-card--minimal .swipe-post-card__plane--two {
+  transform: none;
+}
+
+.swipe-post-card--busy .swipe-post-card__media::before,
+.swipe-post-card--busy .swipe-post-card__media::after,
+.swipe-post-card--dynamic .swipe-post-card__media::before {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  border-radius: 6px;
+  background: rgba(255, 252, 244, 0.42);
+}
+
+.swipe-post-card--busy .swipe-post-card__media::before {
+  width: 38%;
+  height: 18%;
+  left: 8%;
+  top: 16%;
+  transform: rotate(11deg);
+}
+
+.swipe-post-card--busy .swipe-post-card__media::after {
+  width: 32%;
+  height: 16%;
+  right: 10%;
+  top: 43%;
+  transform: rotate(-8deg);
+}
+
+.swipe-post-card--dynamic .swipe-post-card__media::before {
+  width: 66%;
+  height: 0.7rem;
+  left: 15%;
+  top: 33%;
+  transform: rotate(-24deg);
+}

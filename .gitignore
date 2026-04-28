@@ -4,6 +4,11 @@ backend/.venv/
 backend/venv/
 backend/__pycache__/
 backend/services/__pycache__/
+__pycache__/
+experiments/.cache/
+experiments/runs/
+experiments/suites/
+experiments/aborted-runs/
 backend/.env
 .DS_Store
 .env 

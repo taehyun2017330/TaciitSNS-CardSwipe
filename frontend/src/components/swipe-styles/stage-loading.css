@@ -1,0 +1,70 @@
+.swipe-stage__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 5.2rem;
+  padding: 0.86rem 0.95rem;
+}
+
+.swipe-stage__header span {
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.swipe-stage__header h1 {
+  max-width: 54rem;
+  margin: 0.16rem 0 0;
+  color: var(--ink-strong);
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  line-height: 1.05;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.swipe-stage__actions {
+  display: flex;
+  gap: 0.44rem;
+}
+
+.swipe-icon-button {
+  width: 2.45rem;
+  height: 2.45rem;
+  border-color: rgba(97, 81, 59, 0.13);
+  border-radius: 999px;
+  background: rgba(255, 252, 247, 0.84);
+  color: var(--ink-body);
+}
+
+.swipe-card-stack {
+  position: relative;
+  min-height: 38rem;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(97, 81, 59, 0.1);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(33, 79, 74, 0.035) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(33, 79, 74, 0.035) 1px, transparent 1px),
+    rgba(255, 253, 249, 0.62);
+  background-size: 2.8rem 2.8rem;
+}
+
+.swipe-stack-card {
+  position: absolute;
+  width: min(72%, 25rem);
+  transition: transform 240ms cubic-bezier(0.2, 0.7, 0.2, 1), opacity 180ms ease;
+}
+
+.swipe-stack-card.is-front {
+  filter: drop-shadow(0 22px 46px rgba(46, 35, 18, 0.18));
+}
+
+.swipe-stack-card.is-past {
+  visibility: hidden;
+}

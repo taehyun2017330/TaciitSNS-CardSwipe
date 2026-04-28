@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client';
 
-import PreferenceSwipePrototype from './components/PreferenceSwipePrototype';
+import { App } from './components/App';
 import './global.css';
 
-createRoot(document.getElementById('root')!).render(<PreferenceSwipePrototype />);
+createRoot(document.getElementById('root')!).render(<App />);

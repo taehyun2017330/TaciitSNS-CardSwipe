@@ -1,0 +1,296 @@
+[
+  {
+    "key": "palette.brightness",
+    "label": "bright palette",
+    "dimension": "visual.palette",
+    "description": "Overall lightness and brightness of the image.",
+    "aliases": ["bright", "light", "airy", "dark"]
+  },
+  {
+    "key": "palette.saturation",
+    "label": "saturated color",
+    "dimension": "visual.palette",
+    "description": "Vivid, intense color rather than muted or neutral color.",
+    "aliases": ["saturated", "vivid", "colorful", "muted"]
+  },
+  {
+    "key": "palette.warmth",
+    "label": "warm color temperature",
+    "dimension": "visual.palette",
+    "description": "Warm reds, oranges, yellows, golds, creams, or sunlit warmth.",
+    "aliases": ["warm", "coral", "yellow", "gold", "sand", "cream"]
+  },
+  {
+    "key": "palette.contrast",
+    "label": "high contrast",
+    "dimension": "visual.palette",
+    "description": "Strong tonal or color contrast with crisp separation.",
+    "aliases": ["contrast", "punchy", "flat"]
+  },
+  {
+    "key": "palette.blueDominance",
+    "label": "blue-dominant palette",
+    "dimension": "visual.palette",
+    "description": "Blue or cool cyan is a dominant color family.",
+    "aliases": ["blue", "cool", "cold", "cyan"]
+  },
+  {
+    "key": "composition.minimal",
+    "label": "minimal composition",
+    "dimension": "visual.composition",
+    "description": "Spacious, restrained composition with few competing elements.",
+    "aliases": ["minimal", "simple", "clean", "not busy"]
+  },
+  {
+    "key": "composition.editorial",
+    "label": "editorial composition",
+    "dimension": "visual.composition",
+    "description": "Magazine-like art direction, refined hierarchy, campaign styling.",
+    "aliases": ["editorial", "magazine", "campaign", "art direction"]
+  },
+  {
+    "key": "composition.dynamic",
+    "label": "dynamic composition",
+    "dimension": "visual.composition",
+    "description": "Motion, diagonals, asymmetry, or kinetic visual energy.",
+    "aliases": ["dynamic", "movement", "motion", "bold"]
+  },
+  {
+    "key": "composition.cluttered",
+    "label": "cluttered layout",
+    "dimension": "visual.composition",
+    "description": "Busy layout with many competing objects, labels, or badges.",
+    "aliases": ["clutter", "busy", "crowded", "too much"]
+  },
+  {
+    "key": "composition.depth",
+    "label": "spatial depth",
+    "dimension": "visual.composition",
+    "description": "Layered foreground/background space rather than flat poster layout.",
+    "aliases": ["depth", "layered", "flat"]
+  },
+  {
+    "key": "subject.humanPresence",
+    "label": "human presence",
+    "dimension": "visual.subject",
+    "description": "People, faces, hands, models, or human lifestyle cues are visible.",
+    "aliases": ["person", "people", "model", "face", "human"]
+  },
+  {
+    "key": "subject.productProminence",
+    "label": "product prominence",
+    "dimension": "visual.subject",
+    "description": "The product or offer object is clear and central.",
+    "aliases": ["product", "item", "merchandise", "show the product"]
+  },
+  {
+    "key": "subject.lifestyleContext",
+    "label": "lifestyle context",
+    "dimension": "visual.subject",
+    "description": "Product appears in lived context, scene, activity, or aspiration.",
+    "aliases": ["lifestyle", "context", "real life", "aspirational"]
+  },
+  {
+    "key": "subject.productOnly",
+    "label": "product-only staging",
+    "dimension": "visual.subject",
+    "description": "Product is staged alone without lifestyle scene or people.",
+    "aliases": ["product-only", "catalog", "packshot"]
+  },
+  {
+    "key": "setting.coastal",
+    "label": "coastal or beach setting",
+    "dimension": "visual.setting",
+    "description": "Beach, water, sand, summer, resort, or coastal outdoor cues.",
+    "aliases": ["beach", "coastal", "summer", "resort"]
+  },
+  {
+    "key": "setting.urban",
+    "label": "urban setting",
+    "dimension": "visual.setting",
+    "description": "Street, city, architecture, nightlife, or metropolitan context.",
+    "aliases": ["urban", "city", "street"]
+  },
+  {
+    "key": "setting.studio",
+    "label": "studio product setting",
+    "dimension": "visual.setting",
+    "description": "Controlled studio, seamless background, or deliberate set styling.",
+    "aliases": ["studio", "set", "controlled"]
+  },
+  {
+    "key": "setting.homeInterior",
+    "label": "home interior setting",
+    "dimension": "visual.setting",
+    "description": "Home, room, sofa, tabletop, domestic, or interior lifestyle cues.",
+    "aliases": ["home", "interior", "room", "domestic"]
+  },
+  {
+    "key": "lighting.sunny",
+    "label": "sunny lighting",
+    "dimension": "visual.lighting",
+    "description": "Bright natural daylight or sunlit atmosphere.",
+    "aliases": ["sunny", "daylight", "natural light"]
+  },
+  {
+    "key": "lighting.moody",
+    "label": "moody lighting",
+    "dimension": "visual.lighting",
+    "description": "Low-key, shadowy, dramatic, dim, or atmospheric lighting.",
+    "aliases": ["moody", "dramatic", "shadow", "dark"]
+  },
+  {
+    "key": "lighting.synthetic",
+    "label": "synthetic lighting",
+    "dimension": "visual.lighting",
+    "description": "Neon, hard artificial light, glossy AI glow, or unrealistic lighting.",
+    "aliases": ["neon", "synthetic", "fake", "ai glow"]
+  },
+  {
+    "key": "lighting.softNatural",
+    "label": "soft natural lighting",
+    "dimension": "visual.lighting",
+    "description": "Soft believable natural light without harsh artificial effects.",
+    "aliases": ["soft light", "natural", "gentle light"]
+  },
+  {
+    "key": "typography.clean",
+    "label": "clean typography",
+    "dimension": "visual.typography",
+    "description": "Simple refined type, good spacing, clear hierarchy.",
+    "aliases": ["clean typography", "simple type", "legible"]
+  },
+  {
+    "key": "typography.playful",
+    "label": "playful typography",
+    "dimension": "visual.typography",
+    "description": "Decorative, expressive, sticker-like, or playful letterforms.",
+    "aliases": ["playful type", "fun type", "decorative text"]
+  },
+  {
+    "key": "typography.textDensity",
+    "label": "high text density",
+    "dimension": "sns.layout",
+    "description": "Lots of text, dense copy, or many written claims in the image.",
+    "aliases": ["too much text", "text heavy", "copy dense"]
+  },
+  {
+    "key": "marketing.saleEmphasis",
+    "label": "strong sale emphasis",
+    "dimension": "sns.offer",
+    "description": "Prominent sale, discount, urgency, percent-off, or promo language.",
+    "aliases": ["sale", "discount", "promo", "promotional"]
+  },
+  {
+    "key": "marketing.subtlety",
+    "label": "subtle offer treatment",
+    "dimension": "sns.offer",
+    "description": "Offer is understated, quiet, member-like, or secondary to image mood.",
+    "aliases": ["subtle", "quiet offer", "understated"]
+  },
+  {
+    "key": "sns.ctaProminence",
+    "label": "CTA prominence",
+    "dimension": "sns.offer",
+    "description": "Call-to-action or shopping instruction is visually prominent.",
+    "aliases": ["cta", "shop now", "call to action"]
+  },
+  {
+    "key": "sns.brandPresence",
+    "label": "brand presence",
+    "dimension": "sns.branding",
+    "description": "Logo, brand name, brand marks, or owned design language are visible.",
+    "aliases": ["brand", "logo", "brand name"]
+  },
+  {
+    "key": "sns.platformNative",
+    "label": "platform-native feel",
+    "dimension": "sns.platform",
+    "description": "Feels native to social feed rather than like a generic ad template.",
+    "aliases": ["native", "instagram", "social", "feed"]
+  },
+  {
+    "key": "sns.scrollStoppingIntensity",
+    "label": "scroll-stopping intensity",
+    "dimension": "sns.platform",
+    "description": "Strong immediate attention-grabbing visual intensity.",
+    "aliases": ["scroll stopping", "attention", "eye catching"]
+  },
+  {
+    "key": "sns.templateFeel",
+    "label": "template-like feel",
+    "dimension": "sns.platform",
+    "description": "Looks like a generic stock template or reusable promo graphic.",
+    "aliases": ["template", "generic", "stock"]
+  },
+  {
+    "key": "sns.ugcFeel",
+    "label": "UGC/native creator feel",
+    "dimension": "sns.platform",
+    "description": "Feels like user-generated or creator-native content rather than polished brand advertising.",
+    "aliases": ["ugc", "creator", "authentic", "real"]
+  },
+  {
+    "key": "mood.premium",
+    "label": "premium mood",
+    "dimension": "business.positioning",
+    "description": "High-end, expensive, elevated, luxury, or refined feeling.",
+    "aliases": ["premium", "luxury", "elevated", "high-end"]
+  },
+  {
+    "key": "mood.credible",
+    "label": "credible tone",
+    "dimension": "business.positioning",
+    "description": "Trustworthy, professional, realistic, and believable for the brand.",
+    "aliases": ["credible", "trustworthy", "professional", "realistic"]
+  },
+  {
+    "key": "mood.playful",
+    "label": "playful mood",
+    "dimension": "business.positioning",
+    "description": "Fun, light, quirky, casual, or playful tone.",
+    "aliases": ["playful", "fun", "quirky"]
+  },
+  {
+    "key": "mood.energetic",
+    "label": "energetic mood",
+    "dimension": "business.positioning",
+    "description": "Exciting, kinetic, bold, urgent, or active mood.",
+    "aliases": ["energetic", "energy", "exciting"]
+  },
+  {
+    "key": "mood.calm",
+    "label": "calm mood",
+    "dimension": "business.positioning",
+    "description": "Quiet, restful, restrained, serene, or calm mood.",
+    "aliases": ["calm", "quiet", "restrained", "serene"]
+  },
+  {
+    "key": "mood.cheap",
+    "label": "cheap-looking cues",
+    "dimension": "business.positioning",
+    "description": "Low-quality, bargain-bin, generic, unrefined, or off-brand cheapness.",
+    "aliases": ["cheap", "discounty", "low quality", "salesy"]
+  },
+  {
+    "key": "business.audienceFit",
+    "label": "audience fit",
+    "dimension": "business.fit",
+    "description": "Feels appropriate for the target customer's taste and expectations.",
+    "aliases": ["audience", "customer", "right person"]
+  },
+  {
+    "key": "business.categoryConvention",
+    "label": "category convention fit",
+    "dimension": "business.fit",
+    "description": "Fits or intentionally breaks conventions of the business category.",
+    "aliases": ["category", "industry", "fits fashion", "fits restaurant"]
+  },
+  {
+    "key": "business.productClarity",
+    "label": "product clarity",
+    "dimension": "business.fit",
+    "description": "The product, service, or offer is easy to understand quickly.",
+    "aliases": ["clear product", "understand", "what is sold"]
+  }
+]

@@ -4,15 +4,27 @@ import type { FeatureVector } from './types';
 interface AnalysisResult {
   planId: string;
   features: Partial<FeatureVector>;
+  imageSummary?: string;
+  rationaleSuggestions?: string[];
+  likeRationaleSuggestions?: string[];
+  dislikeRationaleSuggestions?: string[];
 }
 
 interface AnalysisResponse {
   results: AnalysisResult[];
 }
 
+export interface ImageAnalysisPayload {
+  features: Partial<FeatureVector>;
+  imageSummary: string;
+  rationaleSuggestions: string[];
+  likeRationaleSuggestions: string[];
+  dislikeRationaleSuggestions: string[];
+}
+
 export async function requestImageAnalysis(
   images: Array<{ planId: string; imageUrl: string }>
-): Promise<Map<string, Partial<FeatureVector>>> {
+): Promise<Map<string, ImageAnalysisPayload>> {
   if (!images.length) {
     return new Map();
   }
@@ -29,9 +41,15 @@ export async function requestImageAnalysis(
   }
 
   const body = (await response.json()) as AnalysisResponse;
-  const map = new Map<string, Partial<FeatureVector>>();
+  const map = new Map<string, ImageAnalysisPayload>();
   for (const result of body.results ?? []) {
-    map.set(result.planId, result.features ?? {});
+    map.set(result.planId, {
+      features: result.features ?? {},
+      imageSummary: result.imageSummary ?? '',
+      rationaleSuggestions: (result.rationaleSuggestions ?? []).filter(Boolean),
+      likeRationaleSuggestions: (result.likeRationaleSuggestions ?? []).filter(Boolean),
+      dislikeRationaleSuggestions: (result.dislikeRationaleSuggestions ?? []).filter(Boolean)
+    });
   }
   return map;
 }

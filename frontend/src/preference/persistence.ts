@@ -1,7 +1,8 @@
 import type { FeedbackEvent, OnboardingState, PreferenceState } from './types';
+import { normalizePreferenceState } from './model';
 
-const STORAGE_PREFIX = 'tacitsns-swipe:v1:';
-const STORAGE_VERSION = 1;
+const STORAGE_PREFIX = 'tacitsns-swipe:v3:';
+const STORAGE_VERSION = 3;
 
 interface PersistedSession {
   version: number;
@@ -17,6 +18,28 @@ function makeKey(brandName: string, category: string) {
   return STORAGE_PREFIX + normalized;
 }
 
+function compactPreferenceState(preferenceState: PreferenceState): PreferenceState {
+  return {
+    ...preferenceState,
+    facets: Object.fromEntries(
+      Object.entries(preferenceState.facets).map(([key, facet]) => [
+        key,
+        {
+          feature: facet.feature,
+          label: facet.label,
+          dimension: facet.dimension,
+          alpha: facet.alpha,
+          beta: facet.beta,
+          evidenceFor: facet.evidenceFor,
+          evidenceAgainst: facet.evidenceAgainst,
+          sourceTypes: facet.sourceTypes,
+          lastSeenBatch: facet.lastSeenBatch
+        }
+      ])
+    ) as PreferenceState['facets']
+  };
+}
+
 export function saveSession(
   onboarding: OnboardingState,
   preferenceState: PreferenceState,
@@ -30,7 +53,7 @@ export function saveSession(
     version: STORAGE_VERSION,
     savedAt: new Date().toISOString(),
     onboarding,
-    preferenceState,
+    preferenceState: compactPreferenceState(preferenceState),
     feedbackEvents,
     batchNumber
   };
@@ -54,7 +77,10 @@ export function loadSession(brandName: string, category: string): PersistedSessi
     if (parsed.version !== STORAGE_VERSION) {
       return null;
     }
-    return parsed;
+    return {
+      ...parsed,
+      preferenceState: normalizePreferenceState(parsed.preferenceState, parsed.onboarding)
+    };
   } catch (error) {
     console.warn('[persistence] load failed', error);
     return null;

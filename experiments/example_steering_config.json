@@ -1,0 +1,26 @@
+{
+  "runName": "harbor-thread-premium-warm-reference",
+  "apiBase": "http://127.0.0.1:8001",
+  "outDir": "experiments/runs",
+  "targetImage": "",
+  "targetBrief": "A square premium fashion retail sale post: warm natural light, editorial product styling, clear knitwear or seasonal apparel, subtle sale message, clean typography, social-feed native, not cheap or cluttered.",
+  "autoOnboardingFromTarget": false,
+  "onboarding": {
+    "brandName": "Harbor & Thread",
+    "category": "Fashion retail",
+    "goal": "Create social posts for a seasonal sale without making the brand feel cheap.",
+    "audience": "Style-conscious local shoppers who care about quality."
+  },
+  "batches": 10,
+  "initialBatchSize": 8,
+  "batchSize": 8,
+  "generationConcurrency": 4,
+  "analysisBatchSize": 2,
+  "targetScore": 0.82,
+  "minBatches": 1,
+  "stopAtTarget": true,
+  "judgeModel": "gpt-4o",
+  "targetOnboardingModel": "gpt-4o",
+  "streamLogs": true,
+  "dryRun": false
+}

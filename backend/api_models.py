@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from pydantic import BaseModel, Field
 
@@ -54,6 +54,13 @@ class SwipePromptSynthesisRequest(BaseModel):
     leanInto: List[str] = Field(default_factory=list)
     avoidFacets: List[str] = Field(default_factory=list)
     testNext: List[str] = Field(default_factory=list)
+    preferenceSummary: str = ""
+    semanticBrief: str = ""
+    semanticMemory: Dict[str, Any] = Field(default_factory=dict)
+    weightedFacets: List[Dict[str, Any]] = Field(default_factory=list)
+    strategyMix: List[str] = Field(default_factory=list)
+    diversityBrief: str = ""
+    diversityLanes: List[str] = Field(default_factory=list)
     recentLikes: List[str] = Field(default_factory=list)
     recentDislikes: List[str] = Field(default_factory=list)
     batchNumber: int = 1
@@ -66,6 +73,7 @@ class SynthesizedPlan(BaseModel):
     hypothesis: str
     prompt: str
     negativePrompt: str
+    targetAttributes: List[str] = Field(default_factory=list)
 
 
 class SwipePromptSynthesisResponse(BaseModel):
@@ -84,6 +92,10 @@ class SwipeImageAnalysisRequest(BaseModel):
 class SwipeImageAnalysisResult(BaseModel):
     planId: str
     features: Dict[str, float] = Field(default_factory=dict)
+    imageSummary: str = ""
+    rationaleSuggestions: List[str] = Field(default_factory=list)
+    likeRationaleSuggestions: List[str] = Field(default_factory=list)
+    dislikeRationaleSuggestions: List[str] = Field(default_factory=list)
 
 
 class SwipeImageAnalysisResponse(BaseModel):

@@ -1,0 +1,116 @@
+.swipe-slate-complete {
+  position: absolute;
+  inset: auto;
+  width: min(86%, 25rem);
+  display: grid;
+  justify-items: center;
+  gap: 0.72rem;
+  padding: 1.25rem;
+  border: 1px solid rgba(33, 79, 74, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 253, 249, 0.94);
+  box-shadow: 0 20px 48px rgba(48, 38, 22, 0.12);
+  text-align: center;
+  z-index: 10;
+}
+
+.swipe-slate-complete h2 {
+  margin: 0;
+  color: var(--ink-strong);
+  font-family: var(--font-display);
+  font-size: 1.65rem;
+  letter-spacing: 0;
+}
+
+.swipe-slate-complete p {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.swipe-grid-view {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.swipe-grid-view article {
+  position: relative;
+  display: grid;
+  gap: 0.64rem;
+  padding: 0.7rem;
+  border: 1px solid rgba(97, 81, 59, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 253, 249, 0.7);
+}
+
+.swipe-grid-view .swipe-post-card {
+  aspect-ratio: 1 / 1;
+}
+
+.swipe-grid-view article.is-like {
+  border-color: rgba(33, 79, 74, 0.34);
+  background: rgba(230, 241, 236, 0.7);
+}
+
+.swipe-grid-view article.is-dislike {
+  border-color: rgba(166, 83, 63, 0.28);
+  background: rgba(249, 235, 229, 0.72);
+}
+
+.swipe-grid-view article strong {
+  color: var(--ink-strong);
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.swipe-grid-view article p {
+  margin: 0.15rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.swipe-grid-actions {
+  display: flex;
+  gap: 0.42rem;
+}
+
+.swipe-grid-actions button {
+  width: 2.2rem;
+  height: 2.2rem;
+  border-color: rgba(97, 81, 59, 0.13);
+  border-radius: 999px;
+  background: rgba(255, 252, 246, 0.92);
+  color: var(--ink-body);
+}
+
+.swipe-grid-actions button:disabled {
+  cursor: default;
+  opacity: 0.42;
+}
+
+.swipe-generation-error {
+  display: grid;
+  gap: 0.22rem;
+  padding: 0.68rem 0.8rem;
+  border: 1px solid rgba(166, 83, 63, 0.18);
+  border-radius: 8px;
+  background: rgba(249, 235, 229, 0.76);
+  color: #8d3d2f;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.swipe-generation-error strong,
+.swipe-generation-error p {
+  margin: 0;
+}
+
+.swipe-generation-error p {
+  font-size: 0.72rem;
+  line-height: 1.38;
+  overflow-wrap: anywhere;
+}
