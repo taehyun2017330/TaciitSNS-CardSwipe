@@ -7,7 +7,7 @@ from services.facet_catalog import feature_definitions, feature_keys, feature_sc
 
 
 OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
-VISION_MODEL = "gpt-4o-mini"
+VISION_MODEL = "gpt-4o"
 VISION_TIMEOUT_SECONDS = 60.0
 FEATURE_KEYS: List[str] = feature_keys()
 
